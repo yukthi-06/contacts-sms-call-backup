@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Backup Manager</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="title_about">About Backup Manager</string>
+    <string name="about_description">\nThis app is a secure utility for backing up your Contacts, SMS messages, and Call Logs to configured storage paths locally on your device. Your data stays entirely private and secure offline.</string>
+    <string name="title_settings">Settings</string>
+    <string name="label_backup_path">Internal Storage Backup Location Path</string>
+    <string name="btn_save_settings">Save Settings</string>
+</resources>
