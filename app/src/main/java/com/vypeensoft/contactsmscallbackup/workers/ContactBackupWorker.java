@@ -139,7 +139,7 @@ public class ContactBackupWorker extends Worker {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Include foregroundServiceType dataSync for Android 10+ / 14+ compat
-            return new ForegroundInfo(NOTIFICATION_ID, builder.build(), android.content.pm.ActivityInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            return new ForegroundInfo(NOTIFICATION_ID, builder.build(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         } else {
             return new ForegroundInfo(NOTIFICATION_ID, builder.build());
         }

@@ -138,7 +138,7 @@ public class SmsBackupWorker extends Worker {
                 .setProgress(100, progress, false);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return new ForegroundInfo(NOTIFICATION_ID, builder.build(), android.content.pm.ActivityInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            return new ForegroundInfo(NOTIFICATION_ID, builder.build(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         } else {
             return new ForegroundInfo(NOTIFICATION_ID, builder.build());
         }
