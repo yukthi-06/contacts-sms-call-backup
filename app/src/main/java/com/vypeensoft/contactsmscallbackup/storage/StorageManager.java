@@ -34,6 +34,7 @@ public class StorageManager {
     public static class SettingsData {
         public String backupDestType = DEST_INTERNAL;
         public String backupExternalUri = null;
+        public String backupExternalPath = null;
     }
 
     private StorageManager(Context context) {
@@ -72,6 +73,22 @@ public class StorageManager {
             dir.mkdirs();
         }
         try (FileWriter writer = new FileWriter(file)) {
+            // Update backupExternalPath to match current externalUri before saving
+            if (DEST_EXTERNAL.equals(getDestinationType()) && getExternalUri() != null) {
+                String decoded = Uri.decode(getExternalUri());
+                String prefix = "content://com.android.externalstorage.documents/tree/primary:";
+                if (decoded.startsWith(prefix)) {
+                    settingsData.backupExternalPath = decoded.replace(prefix, "/sdcard/");
+                } else {
+                    settingsData.backupExternalPath = decoded;
+                }
+            } else {
+                File internalDir = context.getExternalFilesDir(null);
+                if (internalDir == null) {
+                    internalDir = context.getFilesDir();
+                }
+                settingsData.backupExternalPath = internalDir.getAbsolutePath() + "/BackupManager";
+            }
             gson.toJson(this.settingsData, writer);
             Logger.i("Saved settings successfully to " + SETTINGS_FILE_PATH);
         } catch (Exception e) {
@@ -100,6 +117,15 @@ public class StorageManager {
             int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
             context.getContentResolver().takePersistableUriPermission(uri, takeFlags);
             setExternalUri(uri.toString());
+            
+            String decoded = Uri.decode(uri.toString());
+            String prefix = "content://com.android.externalstorage.documents/tree/primary:";
+            if (decoded.startsWith(prefix)) {
+                settingsData.backupExternalPath = decoded.replace(prefix, "/sdcard/");
+            } else {
+                settingsData.backupExternalPath = decoded;
+            }
+            
             setDestinationType(DEST_EXTERNAL);
             Logger.i("Persisted SAF URI permission: " + uri);
         } catch (Exception e) {
