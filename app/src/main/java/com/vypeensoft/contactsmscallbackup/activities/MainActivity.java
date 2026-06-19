@@ -71,10 +71,13 @@ public class MainActivity extends AppCompatActivity {
                 for (Boolean granted : result.values()) {
                     if (!granted) allGranted = false;
                 }
+                tvStatusMessage.setVisibility(View.VISIBLE);
                 if (allGranted) {
-                    Toast.makeText(this, "Permissions granted.", Toast.LENGTH_SHORT).show();
+                    tvStatusMessage.setTextColor(ContextCompat.getColor(this, R.color.primary));
+                    tvStatusMessage.setText("Permissions granted.");
                 } else {
-                    Toast.makeText(this, "Required permissions denied. Backups may fail.", Toast.LENGTH_LONG).show();
+                    tvStatusMessage.setTextColor(ContextCompat.getColor(this, R.color.error));
+                    tvStatusMessage.setText("Required permissions denied. Backups may fail.");
                 }
             }
     );
@@ -211,7 +214,9 @@ public class MainActivity extends AppCompatActivity {
         boolean xml = cbXml.isChecked();
 
         if (!csv && !json && !xml) {
-            Toast.makeText(this, "Please select at least one format.", Toast.LENGTH_SHORT).show();
+            tvStatusMessage.setTextColor(ContextCompat.getColor(this, R.color.error));
+            tvStatusMessage.setText("Warning: Please select at least one format.");
+            tvStatusMessage.setVisibility(View.VISIBLE);
             return;
         }
 
@@ -249,9 +254,12 @@ public class MainActivity extends AppCompatActivity {
 
                                 Data output = workInfo.getOutputData();
                                 int count = output.getInt("count", 0);
-                                Toast.makeText(this, tag + " Backup completed! Items: " + count, Toast.LENGTH_LONG).show();
+                                tvStatusMessage.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.primary));
+                                tvStatusMessage.setText(tag + " Backup completed! Items: " + count);
+                                tvStatusMessage.setVisibility(View.VISIBLE);
                             } else {
                                 tvStatusOperation.setText("Current Operation: Failed");
+                                tvStatusMessage.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.error));
                                 tvStatusMessage.setText("Error: Backup failed. Check permissions/storage.");
                                 tvStatusMessage.setVisibility(View.VISIBLE);
                             }
