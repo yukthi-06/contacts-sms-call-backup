@@ -75,7 +75,7 @@ public class StorageManager {
                 if (internalDir == null) {
                     internalDir = context.getFilesDir();
                 }
-                settingsData.backupExternalPath = internalDir.getAbsolutePath() + "/BackupManager";
+                settingsData.backupExternalPath = internalDir.getAbsolutePath();
             }
             gson.toJson(this.settingsData, writer);
             Logger.i("Saved settings successfully to " + SETTINGS_FILE_PATH);
@@ -130,7 +130,7 @@ public class StorageManager {
         if (internalDir == null) {
             internalDir = context.getFilesDir();
         }
-        return internalDir.getAbsolutePath() + "/BackupManager";
+        return internalDir.getAbsolutePath();
     }
 
     public String writeBackupFile(String category, String filename, String content) throws IOException {
@@ -140,13 +140,13 @@ public class StorageManager {
 
         if (DEST_EXTERNAL.equals(destType) && getExternalPath() != null) {
             File root = new File(getExternalPath());
-            backupDir = new File(root, "BackupManager/" + category);
+            backupDir = new File(root, category);
         } else {
             File root = context.getExternalFilesDir(null);
             if (root == null) {
                 root = context.getFilesDir();
             }
-            backupDir = new File(root, "BackupManager/" + category);
+            backupDir = new File(root, category);
         }
 
         if (!backupDir.exists()) {
@@ -171,17 +171,15 @@ public class StorageManager {
         // Scan internal folder
         File root = context.getExternalFilesDir(null);
         if (root == null) root = context.getFilesDir();
-        File managerDir = new File(root, "BackupManager");
-        if (managerDir.exists()) {
-            scanInternalFolder(managerDir, results);
+        if (root.exists()) {
+            scanInternalFolder(root, results);
         }
 
         // Scan external folder using File API
         if (DEST_EXTERNAL.equals(getDestinationType()) && getExternalPath() != null) {
             File extRoot = new File(getExternalPath());
-            File extManager = new File(extRoot, "BackupManager");
-            if (extManager.exists()) {
-                scanInternalFolder(extManager, results);
+            if (extRoot.exists()) {
+                scanInternalFolder(extRoot, results);
             }
         }
         return results;
