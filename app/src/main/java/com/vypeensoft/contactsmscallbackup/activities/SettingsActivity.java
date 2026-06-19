@@ -48,16 +48,15 @@ public class SettingsActivity extends AppCompatActivity {
 
         tvCurrentPath = findViewById(R.id.tvCurrentPath);
         MaterialButton btnChangeFolder = findViewById(R.id.btnChangeFolder);
-        MaterialButton btnResetFolder = findViewById(R.id.btnResetFolder);
+        MaterialButton btnSaveSettings = findViewById(R.id.btnSaveSettings);
 
         updatePathUI();
 
         btnChangeFolder.setOnClickListener(v -> openDocumentTreeLauncher.launch(null));
-        btnResetFolder.setOnClickListener(v -> {
-            storage.setDestinationType(StorageManager.DEST_INTERNAL);
-            storage.setExternalUri(null);
-            updatePathUI();
-            Toast.makeText(this, "Switched to internal storage", Toast.LENGTH_SHORT).show();
+        btnSaveSettings.setOnClickListener(v -> {
+            storage.saveSettings();
+            Toast.makeText(this, "Settings saved successfully", Toast.LENGTH_SHORT).show();
+            finish();
         });
     }
 

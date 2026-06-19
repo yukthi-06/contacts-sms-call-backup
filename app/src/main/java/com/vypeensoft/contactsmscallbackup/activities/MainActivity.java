@@ -166,7 +166,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateDestinationUI() {
-        tvSelectedFolder.setText(storageManager.getBackupFolderDescription());
+        String desc = storageManager.getBackupFolderDescription();
+        desc = desc.replace("External SAF Path: ", "")
+                   .replace("Internal Storage: ", "");
+        tvSelectedFolder.setText(desc);
     }
 
     private void loadLastBackupTime() {

@@ -1,17 +1,18 @@
 package com.vypeensoft.contactsmscallbackup.storage;
 
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Environment;
 import androidx.documentfile.provider.DocumentFile;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.vypeensoft.contactsmscallbackup.utils.Logger;
 
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -20,20 +21,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class StorageManager {
-    private static final String PREFS_NAME = "BackupPrefs";
-    private static final String KEY_DEST_TYPE = "backup_dest_type"; // "internal" or "external"
-    private static final String KEY_EXTERNAL_URI = "backup_external_uri";
-    
     public static final String DEST_INTERNAL = "internal";
     public static final String DEST_EXTERNAL = "external";
 
+    private static final String SETTINGS_FILE_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Vypeensoft/Contact_SMS_CallLogs/settings/settings.json";
+    private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
     private static StorageManager instance;
     private final Context context;
-    private final SharedPreferences prefs;
+    private SettingsData settingsData;
+
+    public static class SettingsData {
+        public String backupDestType = DEST_INTERNAL;
+        public String backupExternalUri = null;
+    }
 
     private StorageManager(Context context) {
         this.context = context.getApplicationContext();
-        this.prefs = this.context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        loadSettings();
     }
 
     public static synchronized StorageManager getInstance(Context context) {
@@ -43,20 +48,51 @@ public class StorageManager {
         return instance;
     }
 
+    private void loadSettings() {
+        File file = new File(SETTINGS_FILE_PATH);
+        if (!file.exists()) {
+            this.settingsData = new SettingsData();
+            return;
+        }
+        try (FileReader reader = new FileReader(file)) {
+            this.settingsData = gson.fromJson(reader, SettingsData.class);
+            if (this.settingsData == null) {
+                this.settingsData = new SettingsData();
+            }
+        } catch (Exception e) {
+            Logger.e("Failed to load settings from JSON file", e);
+            this.settingsData = new SettingsData();
+        }
+    }
+
+    public void saveSettings() {
+        File file = new File(SETTINGS_FILE_PATH);
+        File dir = file.getParentFile();
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs();
+        }
+        try (FileWriter writer = new FileWriter(file)) {
+            gson.toJson(this.settingsData, writer);
+            Logger.i("Saved settings successfully to " + SETTINGS_FILE_PATH);
+        } catch (Exception e) {
+            Logger.e("Failed to save settings to JSON file", e);
+        }
+    }
+
     public String getDestinationType() {
-        return prefs.getString(KEY_DEST_TYPE, DEST_INTERNAL);
+        return settingsData.backupDestType;
     }
 
     public void setDestinationType(String type) {
-        prefs.edit().putString(KEY_DEST_TYPE, type).apply();
+        settingsData.backupDestType = type;
     }
 
     public String getExternalUri() {
-        return prefs.getString(KEY_EXTERNAL_URI, null);
+        return settingsData.backupExternalUri;
     }
 
     public void setExternalUri(String uri) {
-        prefs.edit().putString(KEY_EXTERNAL_URI, uri).apply();
+        settingsData.backupExternalUri = uri;
     }
 
     public void persistUriPermission(Uri uri) {
@@ -75,11 +111,12 @@ public class StorageManager {
         if (DEST_EXTERNAL.equals(getDestinationType())) {
             String uriStr = getExternalUri();
             if (uriStr != null) {
-                Uri uri = Uri.parse(uriStr);
-                DocumentFile folder = DocumentFile.fromTreeUri(context, uri);
-                if (folder != null && folder.exists()) {
-                    return "External SAF: " + folder.getName();
+                String decoded = Uri.decode(uriStr);
+                String prefix = "content://com.android.externalstorage.documents/tree/primary:";
+                if (decoded.startsWith(prefix)) {
+                    return "External SAF Path: " + decoded.replace(prefix, "/sdcard/");
                 }
+                return "External SAF Path: " + decoded;
             }
             return "External SAF: (Selected folder unavailable, fallback to internal)";
         }
@@ -90,11 +127,9 @@ public class StorageManager {
         return "Internal Storage: " + internalDir.getAbsolutePath() + "/BackupManager";
     }
 
-    /**
-     * Writes backup file to the selected storage type under category folder (Contacts, SMS, CallLogs).
-     * @return Path description of the created file, or null if writing fails.
-     */
     public String writeBackupFile(String category, String filename, String content) throws IOException {
+        // Ensure settings are loaded fresh
+        loadSettings();
         String destType = getDestinationType();
         if (DEST_EXTERNAL.equals(destType)) {
             String uriStr = getExternalUri();
@@ -102,19 +137,16 @@ public class StorageManager {
                 Uri treeUri = Uri.parse(uriStr);
                 DocumentFile treeRoot = DocumentFile.fromTreeUri(context, treeUri);
                 if (treeRoot != null && treeRoot.exists()) {
-                    // Create BackupManager/ folder if not exists
                     DocumentFile managerDir = treeRoot.findFile("BackupManager");
                     if (managerDir == null) {
                         managerDir = treeRoot.createDirectory("BackupManager");
                     }
                     if (managerDir != null) {
-                        // Create Category/ folder if not exists
                         DocumentFile categoryDir = managerDir.findFile(category);
                         if (categoryDir == null) {
                             categoryDir = managerDir.createDirectory(category);
                         }
                         if (categoryDir != null) {
-                            // Determine MIME type
                             String mimeType = "text/plain";
                             if (filename.endsWith(".json")) mimeType = "application/json";
                             else if (filename.endsWith(".xml")) mimeType = "text/xml";
@@ -136,10 +168,8 @@ public class StorageManager {
                     }
                 }
             }
-            // If external failed, fall back or throw exception
             throw new IOException("External SAF storage folder is unavailable.");
         } else {
-            // Write to Internal App storage
             File root = context.getExternalFilesDir(null);
             if (root == null) {
                 root = context.getFilesDir();
@@ -151,7 +181,7 @@ public class StorageManager {
                 }
             }
             File file = new File(backupDir, filename);
-            try (FileOutputStream out = new FileOutputStream(file);
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(file);
                  OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
                 writer.write(content);
                 writer.flush();
@@ -161,8 +191,8 @@ public class StorageManager {
     }
 
     public List<String> listBackupFiles() {
+        loadSettings();
         List<String> results = new ArrayList<>();
-        // 1. List internal files
         File root = context.getExternalFilesDir(null);
         if (root == null) root = context.getFilesDir();
         File managerDir = new File(root, "BackupManager");
@@ -170,7 +200,6 @@ public class StorageManager {
             scanInternalFolder(managerDir, results);
         }
 
-        // 2. List external SAF files if available
         String uriStr = getExternalUri();
         if (uriStr != null) {
             try {
