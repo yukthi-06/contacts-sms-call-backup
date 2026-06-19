@@ -145,6 +145,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (storageManager != null) {
+            storageManager.loadSettings();
+        }
         updateDestinationUI();
     }
 
@@ -191,10 +194,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateDestinationUI() {
-        String desc = storageManager.getBackupFolderDescription();
-        desc = desc.replace("External SAF Path: ", "")
-                   .replace("Internal Storage: ", "");
-        tvSelectedFolder.setText(desc);
+        tvSelectedFolder.setText(storageManager.getBackupFolderDescription());
     }
 
     private void loadLastBackupTime() {

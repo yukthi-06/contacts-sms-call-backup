@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
-import androidx.documentfile.provider.DocumentFile;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -14,7 +13,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,11 +27,10 @@ public class StorageManager {
 
     private static StorageManager instance;
     private final Context context;
-    private SettingsData settingsData;
+    public SettingsData settingsData;
 
     public static class SettingsData {
         public String backupDestType = DEST_INTERNAL;
-        public String backupExternalUri = null;
         public String backupExternalPath = null;
     }
 
@@ -49,7 +46,7 @@ public class StorageManager {
         return instance;
     }
 
-    private void loadSettings() {
+    public void loadSettings() {
         File file = new File(SETTINGS_FILE_PATH);
         if (!file.exists()) {
             this.settingsData = new SettingsData();
@@ -73,16 +70,7 @@ public class StorageManager {
             dir.mkdirs();
         }
         try (FileWriter writer = new FileWriter(file)) {
-            // Update backupExternalPath to match current externalUri before saving
-            if (DEST_EXTERNAL.equals(getDestinationType()) && getExternalUri() != null) {
-                String decoded = Uri.decode(getExternalUri());
-                String prefix = "content://com.android.externalstorage.documents/tree/primary:";
-                if (decoded.startsWith(prefix)) {
-                    settingsData.backupExternalPath = decoded.replace(prefix, "/sdcard/");
-                } else {
-                    settingsData.backupExternalPath = decoded;
-                }
-            } else {
+            if (!DEST_EXTERNAL.equals(getDestinationType())) {
                 File internalDir = context.getExternalFilesDir(null);
                 if (internalDir == null) {
                     internalDir = context.getFilesDir();
@@ -104,121 +92,83 @@ public class StorageManager {
         settingsData.backupDestType = type;
     }
 
-    public String getExternalUri() {
-        return settingsData.backupExternalUri;
+    public String getExternalPath() {
+        return settingsData.backupExternalPath;
     }
 
-    public void setExternalUri(String uri) {
-        settingsData.backupExternalUri = uri;
+    public void setExternalPath(String path) {
+        settingsData.backupExternalPath = path;
     }
 
     public void persistUriPermission(Uri uri) {
         try {
             int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
             context.getContentResolver().takePersistableUriPermission(uri, takeFlags);
-            setExternalUri(uri.toString());
             
             String decoded = Uri.decode(uri.toString());
             String prefix = "content://com.android.externalstorage.documents/tree/primary:";
+            String finalPath;
             if (decoded.startsWith(prefix)) {
-                settingsData.backupExternalPath = decoded.replace(prefix, "/sdcard/");
+                finalPath = decoded.replace(prefix, "/sdcard/");
             } else {
-                settingsData.backupExternalPath = decoded;
+                finalPath = decoded;
             }
             
+            setExternalPath(finalPath);
             setDestinationType(DEST_EXTERNAL);
-            Logger.i("Persisted SAF URI permission: " + uri);
+            Logger.i("Persisted SAF directory path: " + finalPath);
         } catch (Exception e) {
             Logger.e("Failed to persist SAF URI permission", e);
         }
     }
 
     public String getBackupFolderDescription() {
-        if (DEST_EXTERNAL.equals(getDestinationType())) {
-            String uriStr = getExternalUri();
-            if (uriStr != null) {
-                String decoded = Uri.decode(uriStr);
-                String prefix = "content://com.android.externalstorage.documents/tree/primary:";
-                if (decoded.startsWith(prefix)) {
-                    return "External SAF Path: " + decoded.replace(prefix, "/sdcard/");
-                }
-                return "External SAF Path: " + decoded;
-            }
-            return "External SAF: (Selected folder unavailable, fallback to internal)";
+        if (DEST_EXTERNAL.equals(getDestinationType()) && getExternalPath() != null) {
+            return getExternalPath();
         }
         File internalDir = context.getExternalFilesDir(null);
         if (internalDir == null) {
             internalDir = context.getFilesDir();
         }
-        return "Internal Storage: " + internalDir.getAbsolutePath() + "/BackupManager";
+        return internalDir.getAbsolutePath() + "/BackupManager";
     }
 
     public String writeBackupFile(String category, String filename, String content) throws IOException {
-        // Ensure settings are loaded fresh
         loadSettings();
         String destType = getDestinationType();
-        if (DEST_EXTERNAL.equals(destType)) {
-            String uriStr = getExternalUri();
-            if (uriStr != null) {
-                Uri treeUri = Uri.parse(uriStr);
-                DocumentFile treeRoot = DocumentFile.fromTreeUri(context, treeUri);
-                if (treeRoot != null && treeRoot.exists()) {
-                    DocumentFile managerDir = treeRoot.findFile("BackupManager");
-                    if (managerDir == null) {
-                        managerDir = treeRoot.createDirectory("BackupManager");
-                    }
-                    if (managerDir != null) {
-                        DocumentFile categoryDir = managerDir.findFile(category);
-                        if (categoryDir == null) {
-                            categoryDir = managerDir.createDirectory(category);
-                        }
-                        if (categoryDir != null) {
-                            String mimeType = "text/plain";
-                            if (filename.endsWith(".json")) mimeType = "application/json";
-                            else if (filename.endsWith(".xml")) mimeType = "text/xml";
-                            else if (filename.endsWith(".csv")) mimeType = "text/comma-separated-values";
+        File backupDir;
 
-                            DocumentFile backupFile = categoryDir.findFile(filename);
-                            if (backupFile == null) {
-                                backupFile = categoryDir.createFile(mimeType, filename);
-                            }
-                            if (backupFile != null) {
-                                try (OutputStream out = context.getContentResolver().openOutputStream(backupFile.getUri());
-                                     OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-                                    writer.write(content);
-                                    writer.flush();
-                                    return backupFile.getUri().toString();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            throw new IOException("External SAF storage folder is unavailable.");
+        if (DEST_EXTERNAL.equals(destType) && getExternalPath() != null) {
+            File root = new File(getExternalPath());
+            backupDir = new File(root, "BackupManager/" + category);
         } else {
             File root = context.getExternalFilesDir(null);
             if (root == null) {
                 root = context.getFilesDir();
             }
-            File backupDir = new File(root, "BackupManager/" + category);
-            if (!backupDir.exists()) {
-                if (!backupDir.mkdirs()) {
-                    throw new IOException("Could not create directories: " + backupDir.getAbsolutePath());
-                }
+            backupDir = new File(root, "BackupManager/" + category);
+        }
+
+        if (!backupDir.exists()) {
+            if (!backupDir.mkdirs()) {
+                throw new IOException("Could not create directories: " + backupDir.getAbsolutePath());
             }
-            File file = new File(backupDir, filename);
-            try (java.io.FileOutputStream out = new java.io.FileOutputStream(file);
-                 OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-                writer.write(content);
-                writer.flush();
-                return file.getAbsolutePath();
-            }
+        }
+
+        File file = new File(backupDir, filename);
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(file);
+             OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+            writer.write(content);
+            writer.flush();
+            return file.getAbsolutePath();
         }
     }
 
     public List<String> listBackupFiles() {
         loadSettings();
         List<String> results = new ArrayList<>();
+        
+        // Scan internal folder
         File root = context.getExternalFilesDir(null);
         if (root == null) root = context.getFilesDir();
         File managerDir = new File(root, "BackupManager");
@@ -226,19 +176,12 @@ public class StorageManager {
             scanInternalFolder(managerDir, results);
         }
 
-        String uriStr = getExternalUri();
-        if (uriStr != null) {
-            try {
-                Uri treeUri = Uri.parse(uriStr);
-                DocumentFile treeRoot = DocumentFile.fromTreeUri(context, treeUri);
-                if (treeRoot != null && treeRoot.exists()) {
-                    DocumentFile safManager = treeRoot.findFile("BackupManager");
-                    if (safManager != null && safManager.isDirectory()) {
-                        scanDocumentFolder(safManager, results);
-                    }
-                }
-            } catch (Exception e) {
-                Logger.e("Error scanning SAF folder", e);
+        // Scan external folder using File API
+        if (DEST_EXTERNAL.equals(getDestinationType()) && getExternalPath() != null) {
+            File extRoot = new File(getExternalPath());
+            File extManager = new File(extRoot, "BackupManager");
+            if (extManager.exists()) {
+                scanInternalFolder(extManager, results);
             }
         }
         return results;
@@ -252,19 +195,6 @@ public class StorageManager {
                     scanInternalFolder(file, results);
                 } else {
                     results.add(file.getAbsolutePath());
-                }
-            }
-        }
-    }
-
-    private void scanDocumentFolder(DocumentFile dir, List<String> results) {
-        DocumentFile[] files = dir.listFiles();
-        if (files != null) {
-            for (DocumentFile file : files) {
-                if (file.isDirectory()) {
-                    scanDocumentFolder(file, results);
-                } else {
-                    results.add(file.getName() + " (Tree: " + file.getUri().toString() + ")");
                 }
             }
         }

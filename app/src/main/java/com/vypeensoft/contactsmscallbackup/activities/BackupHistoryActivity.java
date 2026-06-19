@@ -17,6 +17,7 @@ import com.vypeensoft.contactsmscallbackup.R;
 import com.vypeensoft.contactsmscallbackup.adapters.BackupHistoryAdapter;
 import com.vypeensoft.contactsmscallbackup.storage.StorageManager;
 
+import java.io.File;
 import java.util.List;
 
 public class BackupHistoryActivity extends AppCompatActivity {
@@ -55,11 +56,12 @@ public class BackupHistoryActivity extends AppCompatActivity {
 
         btnOpenFolder.setOnClickListener(v -> {
             String destType = storage.getDestinationType();
-            if (StorageManager.DEST_EXTERNAL.equals(destType) && storage.getExternalUri() != null) {
+            if (StorageManager.DEST_EXTERNAL.equals(destType) && storage.getExternalPath() != null) {
                 try {
-                    Uri uri = Uri.parse(storage.getExternalUri());
+                    File folder = new File(storage.getExternalPath());
+                    Uri uri = Uri.fromFile(folder);
                     Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setDataAndType(uri, "vnd.android.document/directory");
+                    intent.setDataAndType(uri, "resource/folder");
                     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     startActivity(intent);
                 } catch (Exception e) {
