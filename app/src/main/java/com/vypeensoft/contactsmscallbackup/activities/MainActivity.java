@@ -62,19 +62,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "BackupPrefs";
     private static final String KEY_LAST_BACKUP = "last_backup_time";
 
-    // SAF directory picking launcher
-    private final ActivityResultLauncher<Uri> openDocumentTreeLauncher = registerForActivityResult(
-            new ActivityResultContracts.OpenDocumentTree(),
-            uri -> {
-                if (uri != null) {
-                    storageManager.persistUriPermission(uri);
-                    updateDestinationUI();
-                } else {
-                    Toast.makeText(this, "No folder selected", Toast.LENGTH_SHORT).show();
-                }
-            }
-    );
-
     // Permission request launcher
     private final ActivityResultLauncher<String[]> requestPermissionsLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
@@ -137,9 +124,6 @@ public class MainActivity extends AppCompatActivity {
         cbJson = findViewById(R.id.cbJson);
         cbXml = findViewById(R.id.cbXml);
 
-        MaterialButton btnChangeFolder = findViewById(R.id.btnChangeFolder);
-        MaterialButton btnResetFolder = findViewById(R.id.btnResetFolder);
-
         MaterialCardView cardBackupContacts = findViewById(R.id.cardBackupContacts);
         MaterialCardView cardBackupSms = findViewById(R.id.cardBackupSms);
         MaterialCardView cardBackupCallLogs = findViewById(R.id.cardBackupCallLogs);
@@ -148,18 +132,16 @@ public class MainActivity extends AppCompatActivity {
         updateDestinationUI();
         loadLastBackupTime();
 
-        btnChangeFolder.setOnClickListener(v -> openDocumentTreeLauncher.launch(null));
-        btnResetFolder.setOnClickListener(v -> {
-            storageManager.setDestinationType(StorageManager.DEST_INTERNAL);
-            storageManager.setExternalUri(null);
-            updateDestinationUI();
-            Toast.makeText(this, "Switched to internal app-specific storage", Toast.LENGTH_SHORT).show();
-        });
-
         cardBackupContacts.setOnClickListener(v -> runBackup(ContactBackupWorker.class, "Contacts"));
         cardBackupSms.setOnClickListener(v -> runBackup(SmsBackupWorker.class, "SMS"));
         cardBackupCallLogs.setOnClickListener(v -> runBackup(CallLogBackupWorker.class, "CallLogs"));
         cardBackupAll.setOnClickListener(v -> runBackup(FullBackupWorker.class, "FullBackup"));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateDestinationUI();
     }
 
     private void checkAndRequestPermissions() {

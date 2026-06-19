@@ -54,11 +54,37 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp" />
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="16dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnChangeFolder"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="Change Folder"
+                    android:textAllCaps="false" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnResetFolder"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Use Internal"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:text="Note: Customize or configure external storage backup path using 'Change Folder' directly on the Main Screen. Custom folders utilize the Android Storage Access Framework (SAF)."
+                android:text="Note: Customize or configure external storage backup path using 'Change Folder'. Custom folders utilize the Android Storage Access Framework (SAF)."
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />
 
